@@ -18,26 +18,26 @@ module.exports = {
   devtool: 'source-map',
   /*
   resolve: {
-    //modulesDirectories: ['node_modules'],
-    extensions: ['.js', '.jsx']
+    modulesDirectories: ['node_modules'],
+    extensions: ['.js', '.jsx', '.json']
+  },
+  resolveLoader: {
+    modulesDirectories: [ '/node_modules' ]
   },
   */
   module: {
     loaders: [
-      {
-        test: /\.json$/,
-        loader: 'json-loader'
-      },
       { 
         test: /\.js$/,
-        include: path.join(__dirname, 'src'),
-        loader: 'babel-loader',
+        //include: path.join(__dirname, 'src'),
+        loader: 'babel',
         exclude: /node_modules/,
         query: {
-          //presets: ['es2015','stage-0']
-          presets: ['es2015']
+          presets: ['es2015','stage-0']
+          //presets: ['es2015']
         }
       },
+      /*
       { 
         test: /\.jsx?$/,
         include: path.join(__dirname, 'src'),
@@ -47,7 +47,6 @@ module.exports = {
           presets: ['es2015']
         }
       },
-      /*
       { 
         test: /\.less$/,
         loader: "style!css!autoprefixer!less"

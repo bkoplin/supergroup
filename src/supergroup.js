@@ -12,7 +12,7 @@
 //require('babel-core');
 import _ from 'lodash';
 //let _ = require('lodash');
-import 'assert';
+import assert from 'assert';
 //const assert = require("assert");
 
 var supergroup = (function() {
