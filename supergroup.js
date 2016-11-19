@@ -1,7 +1,7 @@
 /*
  * # supergroup.js
- * Author: [Sigfried Gold](http://sigfried.org)  
- * License: [MIT](http://sigfried.mit-license.org/)  
+ * Author: [Sigfried Gold](http://sigfried.org)
+ * License: [MIT](http://sigfried.mit-license.org/)
  * Version: 1.0.13
  *
  * usage examples at [http://sigfried.github.io/blog/supergroup](http://sigfried.github.io/blog/supergroup)
@@ -21,7 +21,7 @@ if (typeof require !== "undefined") {
 }
 
 var supergroup = (function() {
-    // @description local reference to supergroup namespace 
+    // @description local reference to supergroup namespace
     var sg = {};
 
     /* @exported function supergroup.group(recs, dim, opts)
@@ -74,7 +74,7 @@ var supergroup = (function() {
                 delete groups[d];
             });
         }
-        var isNumeric = _(opts).has('isNumeric') ? 
+        var isNumeric = _(opts).has('isNumeric') ?
                             opts.isNumeric :
                             wholeListNumeric(groups); // does every group Value look like a number or a missing value?
         var groups = _.map(_.toPairs(groups), function(pair, i) { // setup Values for each group in List
@@ -85,7 +85,7 @@ var supergroup = (function() {
             } else {
                 val = makeStringValue(rawVal); // or everything's a String
             }
-            /* The original records in this group are stored as an Array in 
+            /* The original records in this group are stored as an Array in
              * the records property (should probably be a getter method).
              */
             val.records = pair[1];
@@ -120,7 +120,7 @@ var supergroup = (function() {
         groups.dim = (opts.dimName) ? opts.dimName : dim;
         groups.isNumeric = isNumeric;
 
-        _.each(groups, function(group, i) { 
+        _.each(groups, function(group, i) {
             group.parentList = groups;
             //group.idxInParentList = i; // maybe a good idea, but don't need it yet
         });
@@ -147,7 +147,7 @@ var supergroup = (function() {
     // Methods described below.
     function Value() {}
     // @class State
-    // @description with a couple exceptions, supergroups should not 
+    // @description with a couple exceptions, supergroups should not
     // mutate after creation. States are a way to track selection/highlighting
     // states without mutating.
     function State(list) {
@@ -162,8 +162,8 @@ var supergroup = (function() {
     }
     /*
     State.prototype.selectByFilter = function(filt) {
-        
-        
+
+
         this.selectedVals.push(val);
     }
     */
@@ -218,7 +218,7 @@ var supergroup = (function() {
             self.lookupMap = {};
             self.forEach(function(d) {
                 if (d in self.lookupMap)
-                    console.warn('multiple occurrence of ' + d + 
+                    console.warn('multiple occurrence of ' + d +
                         ' in list. Lookup will only get the last');
                 self.lookupMap[d] = d;
             });
@@ -232,7 +232,7 @@ var supergroup = (function() {
     // lookup more than one thing at a time
     List.prototype.lookupMany = function(query) {
         var list = this;
-        return sg.addSupergroupMethods(_.chain(query).map(function(d) { 
+        return sg.addSupergroupMethods(_.chain(query).map(function(d) {
             return list.singleLookup(d)
         }).compact().value());
     };
@@ -259,13 +259,13 @@ var supergroup = (function() {
         });
     };
     // apply a function to the records of each group
-    // 
+    //
     List.prototype.aggregates = function(func, field, ret) {
         var results = _.map(this, function(val) {
             return val.aggregate(func, field);
         });
         if (ret === 'dict')
-            return _.object(this, results);
+            return _.zipObject(this, results);
         return results;
     };
 
@@ -282,7 +282,7 @@ var supergroup = (function() {
                 if (val.children)
                     return [val+'', val.children.d3NestMap()];
                 return [val+'', val.records];
-            }).object().value();
+            }).zipObject().value();
     }
     List.prototype._sort = Array.prototype.sort;
     List.prototype.sort = function(func) {
@@ -449,9 +449,9 @@ var supergroup = (function() {
         return path.join(opts.delim);
         /*
         var delim = opts.delim || '/';
-        return (this.parent ? 
+        return (this.parent ?
                 this.parent.namePath(_.extend({},opts,{notLeaf:true})) : '') +
-            ((opts.noRoot && this.depth===0) ? '' : 
+            ((opts.noRoot && this.depth===0) ? '' :
                 (this + (opts.notLeaf ? delim : ''))
              )
         */
@@ -526,18 +526,18 @@ var supergroup = (function() {
      *
      * @memberof supergroup
      */
-    sg.aggregate = function(list, numericDim) { 
+    sg.aggregate = function(list, numericDim) {
         if (numericDim) {
             list = _.map(list, numericDim);
         }
         return _.reduce(list, function(memo,num){
                     memo.sum+=num;
                     memo.cnt++;
-                    memo.avg=memo.sum/memo.cnt; 
+                    memo.avg=memo.sum/memo.cnt;
                     memo.max = Math.max(memo.max, num);
                     return memo;
                 },{sum:0,cnt:0,max:-Infinity});
-    }; 
+    };
     /** Compare groups across two similar root nodes
      *
      * @param {from} ...
@@ -642,7 +642,7 @@ var supergroup = (function() {
     _.extend(NumberValue.prototype, Value.prototype);
 
     /** Sometimes a List gets turned into a standard array,
-     *  sg.g., through slicing or sorting or filtering. 
+     *  sg.g., through slicing or sorting or filtering.
      *  addListMethods turns it back into a List
      *
      * `List` would be a constructor if IE10 supported
@@ -665,7 +665,7 @@ var supergroup = (function() {
         }
         return arr;
     };
-    
+
     // can't easily subclass Array, so this explicitly puts the List
     // methods on an Array that's supposed to be a List
     function makeList(arr_arg) {
@@ -688,14 +688,14 @@ var supergroup = (function() {
         // also, does not yet fix depth numbers
         var parents = sg.supergroup(data,[parentProp, childProp]); // 2-level grouping with all parent/child pairs
         var children = parents.leafNodes();
-        var topParents = _.filter(parents, function(parent) { 
+        var topParents = _.filter(parents, function(parent) {
             var adoptiveParent = children.lookup(parent); // is this parent also a child?
             if (adoptiveParent) { // if so, make it the parent
                 adoptiveParent.children = sg.addSupergroupMethods([]);
-                _.each(parent.children, function(c) { 
-                    c.parent = adoptiveParent; 
+                _.each(parent.children, function(c) {
+                    c.parent = adoptiveParent;
                     adoptiveParent.children.push(c)
-                });  
+                });
             } else { // if not, this is a top parent
                 return parent;
             }
@@ -723,7 +723,7 @@ if (_.createAggregator) {
 }
 
 _.mixin({
-    supergroup: supergroup.supergroup, 
+    supergroup: supergroup.supergroup,
     addSupergroupMethods: supergroup.addSupergroupMethods,
     multiValuedGroupBy: multiValuedGroupBy,
     sgDiffList: supergroup.diffList,
@@ -756,9 +756,9 @@ _.mixin({
         if (!iterator && _.isArray(obj)) return _.sum(obj)/obj.length;
         if (_.isArray(obj) && !_.isEmpty(obj)) return _.sum(obj, iterator, context)/obj.length;
     },
-    
-    // Return median of the elements 
-    // if the object element number is odd the median is the 
+
+    // Return median of the elements
+    // if the object element number is odd the median is the
     // object in the "middle" of a sorted array
     // in case of an even number, the arithmetic mean of the two elements
     // in the middle (in case of characters or strings: obj[n/2-1] ) is returned.
