@@ -36,7 +36,7 @@ var supergroup = (function() {
         * function before continuing processing
      * @param {function} [opts.dimName] defaults to the value of `dim`.
         * If `dim` is a function, the dimName will be ugly.
-     * @param {function} [opts.truncateBranchOnEmptyVal] 
+     * @param {function} [opts.truncateBranchOnEmptyVal]
      * @return {Array of Values} enhanced with all the List methods
      *
      * Avaailable as _.supergroup, Underscore mixin
@@ -51,7 +51,7 @@ var supergroup = (function() {
         if (opts.multiValuedGroup || opts.multiValuedGroups) {
             if (opts.wasMultiDim) {
                 if (opts.multiValuedGroups) {
-                    if (_(opts.multiValuedGroups).contains(dim)) {
+                    if (_(opts.multiValuedGroups).includes(dim)) {
                         var groups = _.multiValuedGroupBy(recs, dim);
                     } else {
                         if (opts.truncateBranchOnEmptyVal)
@@ -283,7 +283,7 @@ var supergroup = (function() {
                     return [val+'', val.children.d3NestMap()];
                 return [val+'', val.records];
             }).zipObject().value();
-    }
+    };
     List.prototype._sort = Array.prototype.sort;
     List.prototype.sort = function(func) {
         return sg.addListMethods(this._sort(func));
