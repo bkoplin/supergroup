@@ -51,7 +51,7 @@ var supergroup = (function() {
         if (opts.multiValuedGroup || opts.multiValuedGroups) {
             if (opts.wasMultiDim) {
                 if (opts.multiValuedGroups) {
-                    if (_(opts.multiValuedGroups).contains(dim)) {
+                    if (_.includes(opts.multiValuedGroups, dim)) {
                         var groups = _.multiValuedGroupBy(recs, dim);
                     } else {
                         if (opts.truncateBranchOnEmptyVal) {
