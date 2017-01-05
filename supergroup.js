@@ -287,7 +287,7 @@ var supergroup = (function() {
         return _.map(this, function(val) {
             if (childProp in val)
                 return {text: val.toString(), children: val[childProp].select2GroupedEntries()};
-            return {text: val.toString(), id: val[idField]};
+            return {text: val.toString(), id: val.records[0][idField]};
         });
     };
     List.prototype.d3NestMap = function() {
