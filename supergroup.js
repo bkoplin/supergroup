@@ -279,8 +279,15 @@ var supergroup = (function() {
     List.prototype.nameChildrenEntries = function() {
         return _.map(this, function(val) {
             if (childProp in val)
-                return {name: val.toString(), children: val[childProp].d3NestEntries()};
+                return {name: val.toString(), children: val[childProp].nameChildrenEntries()};
             return {name: val.toString(), children: val.records};
+        });
+    };
+    List.prototype.select2GroupedEntries = function(idField) {
+        return _.map(this, function(val) {
+            if (childProp in val)
+                return {text: val.toString(), children: val[childProp].select2GroupedEntries()};
+            return {text: val.toString(), children: val.records};
         });
     };
     List.prototype.d3NestMap = function() {
