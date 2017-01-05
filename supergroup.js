@@ -286,7 +286,7 @@ var supergroup = (function() {
     List.prototype.select2GroupedEntries = function(idField) {
         return _.map(this, function(val) {
             if (childProp in val)
-                return {text: val.toString(), children: val[childProp].select2GroupedEntries()};
+                return {text: val.toString(), children: val[childProp].select2GroupedEntries(idField)};
             return {text: val.toString(), id: val.records[0][idField]};
         });
     };
