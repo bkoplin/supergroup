@@ -309,12 +309,11 @@ var supergroup = (function () {
     List.prototype.d3NestMap = function () {
         return _.chain(this)
             .map(function (val) {
-                if (val.children) return [val + '', val.children.d3NestMap()];
-                return [val + '', val.records];
+                if (val.children) return _.zipObject([val + '', val.children.d3NestMap()]);
+                return _.zipObject([val + '', val.records]);
             })
-            .zipObject()
             .value();
-    }
+    };
     List.prototype._sort = Array.prototype.sort;
     List.prototype.sort = function (func) {
         return sg.addListMethods(this._sort(func));
