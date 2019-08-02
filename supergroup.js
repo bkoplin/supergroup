@@ -865,6 +865,7 @@ _.mixin({
     sgCompareValue: supergroup.compareValue,
     sgAggregate: supergroup.aggregate,
     hierarchicalTableToTree: supergroup.hierarchicalTableToTree,
+    stratify: supergroup.hierarchicalTableToTree,
     stateClass: supergroup.State,
 
     // FROM https://gist.github.com/AndreasBriese/1670507
