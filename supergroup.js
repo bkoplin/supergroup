@@ -79,7 +79,7 @@ var supergroup = (function() {
             var groups = _.groupBy(recs, dim); // use Underscore's groupBy: http://underscorejs.org/#groupBy
         }
         if (opts.excludeValues) {
-            _.each(opts.excludeValues, function(d) {
+            _.forEach(opts.excludeValues, function(d) {
                 delete groups[d];
             });
         }
@@ -129,7 +129,7 @@ var supergroup = (function() {
         groups.dim = opts.dimName ? opts.dimName : dim;
         groups.isNumeric = isNumeric;
 
-        _.each(groups, function(group, i) {
+        _.forEach(groups, function(group, i) {
             group.parentList = groups;
             //group.idxInParentList = i; // maybe a good idea, but don't need it yet
         });
@@ -143,7 +143,7 @@ var supergroup = (function() {
         var groups = sg.supergroup(recs, dims[0], opts);
         _.chain(dims)
             .tail()
-            .each(function(dim) {
+            .forEach(function(dim) {
                 groups.addLevel(dim, opts);
             })
             .value();
@@ -197,10 +197,10 @@ var supergroup = (function() {
         val.depth = 0;
         val.records = this.records;
         val[childProp] = this;
-        _.each(val[childProp], function(d) {
+        _.forEach(val[childProp], function(d) {
             d.parent = val;
         });
-        _.each(val.descendants(), function(d) {
+        _.forEach(val.descendants(), function(d) {
             d.depth = d.depth + 1;
         });
         return val;
@@ -281,7 +281,7 @@ var supergroup = (function() {
             .value();
     };
     List.prototype.addLevel = function(dim, opts) {
-        _.each(this, function(val) {
+        _.forEach(this, function(val) {
             val.addLevel(dim, opts);
         });
         return this;
@@ -297,13 +297,13 @@ var supergroup = (function() {
         var results = _.map(this, function(val) {
             return val.aggregate(func, field);
         });
-        if (ret === "dict") return _.object(this, results);
+        if (ret === "dict") return _.fromPairs(this, results);
         return results;
     };
 
     List.prototype.d3NestEntries = function() {
         return _.map(this, function(val) {
-            if (childProp in val)
+            if (_.get(val, [childProp, 0]))
                 return {
                     key: val.toString(),
                     values: val[childProp].d3NestEntries()
@@ -312,13 +312,17 @@ var supergroup = (function() {
         });
     };
     List.prototype.d3NestMap = function() {
-        return _.chain(this)
-            .map(function(val) {
-                if (val.children) return [val + "", val.children.d3NestMap()];
-                return [val + "", val.records];
-            })
-            .object()
-            .value();
+        return (
+            _.chain(this)
+                .map(function(val) {
+                    if (_.get(val, [childProp, 0]))
+                        return [val + "", val.children.d3NestMap()];
+                    return [val + "", val.records];
+                })
+                // .tap(console.log)
+                .fromPairs()
+                .value()
+        );
     };
     List.prototype._sort = Array.prototype.sort;
     List.prototype.sort = function(func) {
@@ -373,7 +377,7 @@ var supergroup = (function() {
             );
         });
         if (isNumeric) {
-            _.each(_.keys(groups), function(k) {
+            _.forEach(_.keys(groups), function(k) {
                 if (isNaN(k)) {
                     delete groups[k]; // getting rid of NULL values in dim list!!
                 }
@@ -389,7 +393,7 @@ var supergroup = (function() {
         opts
     ) {
         opts = opts || {};
-        _.each(this.leafNodes() || [this], function(d) {
+        _.forEach(this.leafNodes() || [this], function(d) {
             opts.parent = d;
             if (!("in" in d)) {
                 // d.in means it's part of a diffList
@@ -400,7 +404,7 @@ var supergroup = (function() {
                     d[childProp] = sg.diffList(d.from, d.to, dim, opts);
                 } else {
                     d[childProp] = sg.supergroup(d.records, dim, opts);
-                    _.each(d[childProp], function(c) {
+                    _.forEach(d[childProp], function(c) {
                         c["in"] = d["in"];
                         c[d["in"]] = d[d["in"]];
                     });
@@ -446,7 +450,7 @@ var supergroup = (function() {
     Value.prototype.addRecordsAsChildrenToLeafNodes = function(truncateEmpty) {
         function fixLeaf(node) {
             node.children = node.records;
-            _.each(node.children, function(rec) {
+            _.forEach(node.children, function(rec) {
                 rec.parent = node;
                 rec.depth = node.depth + 1;
                 for (var method in Value.prototype) {
@@ -465,7 +469,7 @@ var supergroup = (function() {
                 }
             });
         } else {
-            _.each(this.leafNodes(), function(node) {
+            _.forEach(this.leafNodes(), function(node) {
                 fixLeaf(node);
             });
         }
@@ -635,7 +639,7 @@ var supergroup = (function() {
             })
             .value();
         var comp = {};
-        _.each(A, function(d, i) {
+        _.forEach(A, function(d, i) {
             comp[d + ""] = {
                 name: d + "",
                 in: "from",
@@ -644,7 +648,7 @@ var supergroup = (function() {
                 dim: dim
             };
         });
-        _.each(B, function(d, i) {
+        _.forEach(B, function(d, i) {
             if (d + "" in comp) {
                 var c = comp[d + ""];
                 c["in"] = "both";
@@ -751,35 +755,94 @@ var supergroup = (function() {
         return arr;
     }
 
-    sg.hierarchicalTableToTree = function(data, parentProp, childProp) {
-        // does not do the right thing if a value has two parents
-        // also, does not yet fix depth numbers
-        var parents = sg.supergroup(data, [parentProp, childProp]); // 2-level grouping with all parent/child pairs
-        var children = parents.leafNodes();
-        var topParents = _.filter(parents, function(parent) {
-            var adoptiveParent = children.lookup(parent); // is this parent also a child?
-            if (adoptiveParent) {
-                // if so, make it the parent
-                adoptiveParent.children = sg.addSupergroupMethods([]);
-                _.each(parent.children, function(c) {
-                    c.parent = adoptiveParent;
-                    adoptiveParent.children.push(c);
-                });
+    sg.hierarchicalTableToTree = function(data, props) {
+        // props needs to contain an array of {dim, opts} objects, starting with the highest level in the hierarchy and moving rightwards to the lowest level
+        var originalList = _.reduce(
+            props,
+            (list, prop, i) => {
+                let dim = prop.dim || prop;
+                let opts = prop.opts || {};
+                if (!list) list = sg.supergroup(data, dim, opts);
+                else list.addLevel(dim, opts);
+                return list;
+            },
+            null
+        );
+        var leafNodes = originalList.leafNodes();
+        _.forEach(originalList, node => {
+            let newParent = leafNodes.lookup(node);
+            if (!newParent) {
+                return;
+            } else if (!_.get(node, [childProp, 0])) {
+                // if the
+                newParent.depth = newParent.parent.depth + 1;
+                console.log(
+                    `"newParent" DOES NOT HAVE "${childProp}" VALUES:\n${newParent.valueOf()}`
+                );
+                // delete newParent.children;
             } else {
-                // if not, this is a top parent
-                return parent;
+                // If this node is also a leafNode
+                newParent.depth = newParent.parent.depth + 1;
+                let childDepth = newParent.depth + 1;
+                // if (_.get(node, [childProp, 0])) {
+                console.log(
+                    `"newParent" HAS "${childProp}" VALUES:\n${newParent.valueOf()}`
+                );
+                newParent[childProp] = sg.addSupergroupMethods([]);
+                _.forEach(node[childProp], function(c) {
+                    c.parent = newParent;
+                    c.depth = childDepth;
+                    newParent[childProp].push(c);
+                });
+                // } else {
+                //     delete newParent[childProp];
+                // }
+                console.log(
+                    `"newParent" LEAFNODES:\n${newParent
+                        .leafNodes()
+                        .rawValues()}`
+                );
             }
-            // if so, make use that child node, move this parent node's children over to it
         });
-        return sg.addSupergroupMethods(topParents);
+        var root = _.chain(originalList)
+            .filter(parent => !leafNodes.lookup(parent))
+            .thru(sg.addSupergroupMethods)
+            .forEach(n => {
+                n.addRecordsAsChildrenToLeafNodes(false);
+                // n.leafNodes().forEach(l => _.unset(l, childProp));
+            })
+            .value();
+        // console.log(
+        //     "ORIGINAL LIST:\n",
+        //     JSON.stringify(originalList.rawValues()),
+        //     "\nLEAF NODES:\n",
+        //     JSON.stringify(originalList.leafNodes().rawValues()),
+        //     "\nTOP PARENTS:\n",
+        //     JSON.stringify(sg.addSupergroupMethods(topParents).rawValues()),
+        //     "\nDEPTHS\n",
+        //     JSON.stringify(
+        //         _.chain(topParents.flattenTree())
+        //             .map(v =>
+        //                 _.zipObject(
+        //                     ["key", "depth", "height"],
+        //                     [v.valueOf(), v.depth]
+        //                 )
+        //             )
+        //             .sortBy(["depth"])
+        //             .value()
+        //     )
+        // );
+
+        return root;
     };
+    console.log("SUPERGROUP LOADED");
     return sg;
 })();
 
 // allows grouping by a field that contains an array of values rather than just a single value
 if (_.createAggregator) {
     var multiValuedGroupBy = _.createAggregator(function(result, value, keys) {
-        _.each(keys, function(key) {
+        _.forEach(keys, function(key) {
             if (hasOwnProperty.call(result, key)) {
                 result[key].push(value);
             } else {

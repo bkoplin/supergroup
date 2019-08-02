@@ -4,9 +4,16 @@
     // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
     "configurations": [{
-        "type": "node",
-        "request": "launch",
-        "name": "Launch Current File",
-        "program": "${file}"
-    }]
+            "type": "node",
+            "request": "launch",
+            "name": "Launch Koplin Tests",
+            "program": "${workspaceFolder}/test/koplin-tests.js"
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "Launch Current File",
+            "program": "${file}"
+        }
+    ]
 }
