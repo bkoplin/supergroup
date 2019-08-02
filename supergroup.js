@@ -818,10 +818,10 @@ var supergroup = (function() {
         var root = _.chain(originalList)
             .filter(parent => !leafNodes.lookup(parent))
             .thru(sg.addSupergroupMethods)
-            .forEach(n => {
-                n.addRecordsAsChildrenToLeafNodes(false);
-                // n.leafNodes().forEach(l => _.unset(l, childProp));
-            })
+            // .forEach(n => {
+            //     n.addRecordsAsChildrenToLeafNodes(false);
+            //     // n.leafNodes().forEach(l => _.unset(l, childProp));
+            // })
             .value();
         // console.log(
         //     "ORIGINAL LIST:\n",
