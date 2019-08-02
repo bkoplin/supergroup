@@ -316,10 +316,14 @@ var supergroup = (function() {
         return _.map(this, function(val) {
             if (_.get(val, [childProp, 0]))
                 return {
-                    id: val.toString(),
+                    text: val.toString(),
                     children: val[childProp].select2Data()
                 };
-            return { id: val.toString(), children: val.records };
+            return {
+                id: val.toString(),
+                text: val.toString(),
+                children: val.records
+            };
         });
     };
     List.prototype.d3NestMap = function() {
