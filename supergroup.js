@@ -311,6 +311,17 @@ var supergroup = (function() {
             return { key: val.toString(), values: val.records };
         });
     };
+    List.prototype.select2Data = function() {
+        // only works if the data is one level deep
+        return _.map(this, function(val) {
+            if (_.get(val, [childProp, 0]))
+                return {
+                    id: val.toString(),
+                    children: val[childProp].select2Data()
+                };
+            return { id: val.toString(), children: val.records };
+        });
+    };
     List.prototype.d3NestMap = function() {
         return (
             _.chain(this)
@@ -776,18 +787,18 @@ var supergroup = (function() {
             } else if (!_.get(node, [childProp, 0])) {
                 // if the
                 newParent.depth = newParent.parent.depth + 1;
-                console.log(
-                    `"newParent" DOES NOT HAVE "${childProp}" VALUES:\n${newParent.valueOf()}`
-                );
+                // console.log(
+                //     `"newParent" DOES NOT HAVE "${childProp}" VALUES:\n${newParent.valueOf()}`
+                // );
                 // delete newParent.children;
             } else {
                 // If this node is also a leafNode
                 newParent.depth = newParent.parent.depth + 1;
                 let childDepth = newParent.depth + 1;
                 // if (_.get(node, [childProp, 0])) {
-                console.log(
-                    `"newParent" HAS "${childProp}" VALUES:\n${newParent.valueOf()}`
-                );
+                // console.log(
+                //     `"newParent" HAS "${childProp}" VALUES:\n${newParent.valueOf()}`
+                // );
                 newParent[childProp] = sg.addSupergroupMethods([]);
                 _.forEach(node[childProp], function(c) {
                     c.parent = newParent;
@@ -797,11 +808,11 @@ var supergroup = (function() {
                 // } else {
                 //     delete newParent[childProp];
                 // }
-                console.log(
-                    `"newParent" LEAFNODES:\n${newParent
-                        .leafNodes()
-                        .rawValues()}`
-                );
+                // console.log(
+                //     `"newParent" LEAFNODES:\n${newParent
+                //         .leafNodes()
+                //         .rawValues()}`
+                // );
             }
         });
         var root = _.chain(originalList)
