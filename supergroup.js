@@ -347,28 +347,34 @@ var supergroup = (function() {
     };
     List.prototype.select2Data = function(textField) {
         // only works if the data is one level deep
-        if (!textField) return [];
         return _.reduce(
             this.flattenTree(),
             function(r, val) {
                 // console.log({ val: val.valueOf(), height: val.height });
                 if (val.height > 1)
                     r.push({
-                        text: val.records[0][textField],
+                        text: val.records[0][val.dim] || val.valueOf(),
                         id: val.valueOf(),
                         children: []
                     });
                 else if (val.height === 1)
                     r.push({
-                        text: val.records[0][textField],
+                        text: val.records[0][val.dim] || val.valueOf(),
                         id: val.valueOf(),
                         children: val[childProp].map(child => {
                             return {
                                 id: child.valueOf(),
-                                text: child.records[0][textField]
+                                text:
+                                    child.records[0][child.dim] ||
+                                    child.valueOf()
                             };
                         })
                     });
+                // else
+                //     r.push({
+                //         text: val.records[0][textField],
+                //         id: val.valueOf()
+                //     });
                 return r;
             },
             []
