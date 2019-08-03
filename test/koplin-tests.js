@@ -8,4 +8,6 @@ const fs = require("fs");
 let csv = fs.readFileSync(path.join(__dirname, "tree_test_data.csv"), "utf8");
 let { data } = Papa.parse(csv, { header: true });
 let s = _.hierarchicalTableToTree(data, ["p", { dim: "c" }]);
-// console.log(s.d3NestMap(), null, "\t");
+// s.eachBefore(console.log);
+// s;
+// console.log(JSON.stringify(s.d3NestEntries(), null, "\t"));
