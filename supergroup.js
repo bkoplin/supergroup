@@ -350,31 +350,27 @@ var supergroup = (function() {
         return _.reduce(
             this.flattenTree(),
             function(r, val) {
-                // console.log({ val: val.valueOf(), height: val.height });
+                textField = textField || val[dim];
                 if (val.height > 1)
                     r.push({
-                        text: val.records[0][val.dim] || val.valueOf(),
+                        text: val.records[0][textField] || val.valueOf(),
                         id: val.valueOf(),
                         children: []
                     });
                 else if (val.height === 1)
                     r.push({
-                        text: val.records[0][val.dim] || val.valueOf(),
+                        text: val.records[0][textField] || val.valueOf(),
                         id: val.valueOf(),
                         children: val[childProp].map(child => {
+                            textField = textField || child[dim];
                             return {
                                 id: child.valueOf(),
                                 text:
-                                    child.records[0][child.dim] ||
+                                    child.records[0][textField] ||
                                     child.valueOf()
                             };
                         })
                     });
-                // else
-                //     r.push({
-                //         text: val.records[0][textField],
-                //         id: val.valueOf()
-                //     });
                 return r;
             },
             []
