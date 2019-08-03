@@ -351,7 +351,7 @@ var supergroup = (function() {
         return _.reduce(
             this.flattenTree(),
             function(r, val) {
-                console.log({ val: val.valueOf(), height: val.height });
+                // console.log({ val: val.valueOf(), height: val.height });
                 if (val.height > 1)
                     r.push({
                         text: val.records[0][textField],
