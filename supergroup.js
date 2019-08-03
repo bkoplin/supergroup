@@ -345,32 +345,40 @@ var supergroup = (function() {
                 .value()
         );
     };
-    List.prototype.select2Data = function(textField) {
+    List.prototype.select2Data = function() {
         // only works if the data is one level deep
+
         return _.reduce(
             this.flattenTree(),
             function(r, val) {
-                textField = textField || val["dim"];
-                if (val.height > 1)
-                    r.push({
-                        text: val.records[0][textField] || val.valueOf(),
-                        id: val.valueOf(),
-                        children: []
-                    });
-                else if (val.height === 1)
-                    r.push({
-                        text: val.records[0][textField] || val.valueOf(),
-                        id: val.valueOf(),
-                        children: val[childProp].map(child => {
-                            textField = textField || child["dim"];
-                            return {
-                                id: child.valueOf(),
-                                text:
-                                    child.records[0][textField] ||
-                                    child.valueOf()
-                            };
-                        })
-                    });
+                let textField = val["dim"];
+                let thisText = val.records[0][textField];
+                // console.log({ textField, thisText });
+                // let hasChildren = val[childProp][0];
+                if (thisText) {
+                    if (val.height > 0)
+                        r.push({
+                            text: val.records[0][textField],
+                            id: val.valueOf(),
+                            children: val[childProp]
+                                .filter(child => child.height === 0)
+                                .map(child => {
+                                    textField = child["dim"];
+                                    return {
+                                        id: child.valueOf(),
+                                        text:
+                                            child.records[0][textField] ||
+                                            child.valueOf()
+                                    };
+                                })
+                        });
+                    else if (val.depth <= 1)
+                        r.push({
+                            text: val.records[0][textField] || val.valueOf(),
+                            id: val.valueOf()
+                        });
+                }
+                // else if (thisText)
                 return r;
             },
             []
