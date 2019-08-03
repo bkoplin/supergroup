@@ -350,7 +350,7 @@ var supergroup = (function() {
         return _.reduce(
             this.flattenTree(),
             function(r, val) {
-                textField = textField || val[dim];
+                textField = textField || val["dim"];
                 if (val.height > 1)
                     r.push({
                         text: val.records[0][textField] || val.valueOf(),
@@ -362,7 +362,7 @@ var supergroup = (function() {
                         text: val.records[0][textField] || val.valueOf(),
                         id: val.valueOf(),
                         children: val[childProp].map(child => {
-                            textField = textField || child[dim];
+                            textField = textField || child["dim"];
                             return {
                                 id: child.valueOf(),
                                 text:
