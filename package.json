@@ -1,10 +1,11 @@
 {
   "name": "supergroup",
-  "version": "1.1.0",
+  "version": "1.1.9",
   "description": "Nested groups on arrays of objects where groups are Strings that know what you want them to know about themselves and their relatives.",
   "main": "supergroup.js",
   "scripts": {
-    "test": "vows supergroup_vows.js"
+    "test": "vows test/*.js --spec",
+    "debug": "node --inspect --debug-brk test/supergroup_vows.js"
   },
   "repository": {
     "type": "git",
@@ -28,12 +29,11 @@
   },
   "homepage": "https://github.com/Sigfried/supergroup",
   "dependencies": {
-    "d3-hierarchy": "^1.1.8",
-    "lodash": "^4.13.1",
-    "papaparse": "^5.0.1",
-    "underscore": "^1.8.3"
+    "lodash": "^4.17.4"
   },
   "devDependencies": {
-    "jasmine": "^2.2.1"
+    "jasmine": "^2.2.1",
+    "vows": "^0.8.1",
+    "xhr2": "^0.1.3"
   }
 }
