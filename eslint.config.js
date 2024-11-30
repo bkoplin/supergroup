@@ -17,6 +17,7 @@ export default antfu(
       'style/newline-per-chained-call': ['error'],
       'style/max-statements-per-line': ['warn'],
       'style/one-var-declaration-per-line': ['error'],
+      'style/indent': ['error', 2],
       'unused-imports/no-unused-imports': 'error',
     },
     formatters: true,
