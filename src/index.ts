@@ -1,24 +1,7 @@
-/* eslint-disable */
-/*
- * # supergroup.js
- * Author: [Sigfried Gold](http://sigfried.org)  
- * License: [MIT](http://sigfried.mit-license.org/)  
- * Version: 1.1.8
- *
- * usage examples at [http://sigfried.github.io/blog/supergroup](http://sigfried.github.io/blog/supergroup)
- */
-; // jshint -W053
-
-'use strict';
 
 var preventScalarInMultiValuedGroup=false; // brought from vocab-pop version, untested, un-thought-about, just trying to sync up
 
-if (typeof require !== "undefined") {
-    var _ = require('lodash');
-    var createAggregator = require('lodash/_createAggregator');
-}
 
-var supergroup = (function() {
     // @description local reference to supergroup namespace
     var sg = {};
 
@@ -1094,46 +1077,19 @@ var supergroup = (function() {
       recs = recs.filter(r => !_.isEmpty(func(r)) || (_.isNumber(func(r)) && isFinite(func(r)))); // _.isEmpty(0) === true
       return recs;
     }
-}());
 
 
-// allows grouping by a field that contains an array of values rather than just a single value
-if (createAggregator) {
-    var multiValuedGroupBy = createAggregator(
-      function(result, value, keys) {
-        if (!Array.isArray(keys)) {
-          //if (preventScalarInMultiValuedGroup)
-          throw new Error("not array")
-        }
-        _.each(keys, function(key) {
-
-          // FROM vocab-pop (line replaces commented section)
-          result[key] = _.uniq([...(result[key]||[]), value])
-          /*
-            if (hasOwnProperty.call(result, key)) {
-                result[key].push(value);
-            } else {
-                result[key] = [value];
-            }
-            */
-
-
-        });
-    }, null, preventScalarInMultiValuedGroup = false);
-} else {
-    var multiValuedGroupBy = function() { throw new Error("couldn't install multiValuedGroupBy") };
-}
 
 _.mixin({
-    supergroup: supergroup.supergroup, 
-    addSupergroupMethods: supergroup.addSupergroupMethods,
+    supergroup: sg.supergroup, 
+    addSupergroupMethods: sg.addSupergroupMethods,
     multiValuedGroupBy: multiValuedGroupBy,
-    sgDiffList: supergroup.diffList,
-    sgCompare: supergroup.compare,
-    sgCompareValue: supergroup.compareValue,
-    sgAggregate: supergroup.aggregate,
-    hierarchicalTableToTree: supergroup.hierarchicalTableToTree,
-    stateClass: supergroup.State,
+    sgDiffList: sg.diffList,
+    sgCompare: sg.compare,
+    sgCompareValue: sg.compareValue,
+    sgAggregate: sg.aggregate,
+    hierarchicalTableToTree: sg.hierarchicalTableToTree,
+    stateClass: sg.State,
 
     // FROM https://gist.github.com/AndreasBriese/1670507
     // Return aritmethic mean of the elements
@@ -1183,4 +1139,3 @@ _.mixin({
 
 // if (typeof module !== "undefined")
 //   module.exports = _;
-export default _;

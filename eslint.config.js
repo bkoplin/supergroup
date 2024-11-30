@@ -4,5 +4,30 @@ import antfu from '@antfu/eslint-config'
 export default antfu(
   {
     type: 'lib',
+    rules: {
+      'no-undef': 'error',
+      'no-console': 'warn',
+      'style/object-property-newline': ['error', {
+        allowMultiplePropertiesPerLine: false,
+      }],
+      'style/object-curly-newline': ['error', {
+        consistent: false,
+        minProperties: 1,
+      }],
+      'antfu/consistent-list-newline': ['warn'],
+      'style/newline-per-chained-call': ['error'],
+      'style/max-statements-per-line': ['warn'],
+      'style/one-var-declaration-per-line': ['error'],
+      // 'ts/member-ordering': [
+      //   "warn",
+      //   {
+      //     "default": {
+      //       "memberTypes": ["field", "constructor", "method"],
+      //       "order": "alphabetically",
+      //     }
+      //   }],
+      'unused-imports/no-unused-imports': 'error',
+    },
+    formatters: true,
   },
 )
