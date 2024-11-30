@@ -36,7 +36,7 @@
   "scripts": {
     "build": "unbuild",
     "bump": "op run --env-file=\"./.env\" -- pnpm bumpp",
-    "bump:up": "bump && changelog",
+    "bump:up": "pnpm bump && pnpm changelog",
     "changelog": "op run --env-file=\"./.env\" -- changelogithub GITHUB_TOKEN",
     "dev": "unbuild --stub",
     "lint": "eslint .",
