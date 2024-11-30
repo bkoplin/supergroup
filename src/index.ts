@@ -1,5 +1,6 @@
 // @description local reference to supergroup namespace
 const sg = {}
+let childProp = 'children'
 
 /* @exported function supergroup.group(recs, dim, opts)
      * @param {Object[]} recs list of records to be grouped
@@ -20,7 +21,7 @@ const sg = {}
      *
      * Avaailable as _.supergroup, Underscore mixin
      */
-sg.supergroup = function (recs, dim, opts) {
+const supergroup = function (recs, dim, opts) {
   // if dim is an array, use multiDimList to create hierarchical grouping
 
   // commented out stuff here from vocab-pop version, never did whatever I was trying
@@ -36,7 +37,7 @@ sg.supergroup = function (recs, dim, opts) {
   })
   // }
   if (_(dim).isArray())
-    return sg.multiDimList(recs, dim, opts)
+    return multiDimList(recs, dim, opts)
   recs = opts.preListRecsHook ? opts.preListRecsHook(recs) : recs
   childProp = opts.childProp || childProp
 
@@ -94,7 +95,7 @@ sg.supergroup = function (recs, dim, opts) {
          */
 
     // 2023-04-28: should records really have all the supergroup methods?
-    sg.addSupergroupMethods(val.records)
+    addSupergroupMethods(val.records)
 
     val.dim = (opts.dimName) ? opts.dimName : dim
     val.records.parentVal = val // NOT TESTED, NOT USED, PROBABLY WRONG
@@ -115,7 +116,7 @@ sg.supergroup = function (recs, dim, opts) {
     return val
   })
   // groups = makeList(groups); // turns groups into a List object
-  groups = sg.addListMethods(groups) // turns groups into a List object
+  groups = addListMethods(groups) // turns groups into a List object
   groups.records = recs // NOT TESTED, NOT USED, PROBABLY WRONG
   groups.dim = (opts.dimName) ? opts.dimName : dim
   groups.isNumeric = isNumeric
@@ -134,9 +135,9 @@ sg.supergroup = function (recs, dim, opts) {
 }
 
 // nested groups, each dim is a level in hierarchy
-sg.multiDimList = function (recs, dims, opts) {
+const multiDimList = function (recs, dims, opts) {
   opts.wasMultiDim = true // pretty kludgy
-  const groups = sg.supergroup(recs, dims[0], opts)
+  const groups = supergroup(recs, dims[0], opts)
   _.chain(dims).tail().each((dim) => {
       groups.addLevel(dim, opts)
     }).value()
@@ -209,7 +210,7 @@ List.prototype.leafNodes = function (level) { // level isn't passed along. proba
     List.prototype.clone = function() {
       var parentVal = this.parentVal,
       return _.chain(this).invokeMap('clone')
-                    .tap(sg.addListMethods)
+                    .tap(addListMethods)
                     .value();
     };
     */
@@ -258,7 +259,7 @@ List.prototype.singleLookup = function (query) {
 // lookup more than one thing at a time
 List.prototype.lookupMany = function (query) {
   const list = this
-  return sg.addSupergroupMethods(_.chain(query).map((d) => {
+  return addSupergroupMethods(_.chain(query).map((d) => {
     return list.singleLookup(d)
   })
     .compact()
@@ -272,7 +273,7 @@ List.prototype.flattenTree = function () {
     })
     .flatten()
     .filter(_.identity) // expunge nulls
-    .tap(sg.addListMethods)
+    .tap(addListMethods)
     .value()
 }
 List.prototype.nodesAtLevel = function (level, currentLevel = 0) {
@@ -282,7 +283,7 @@ List.prototype.nodesAtLevel = function (level, currentLevel = 0) {
     if (!d.hasChildren())
       throw new Error('asking for deeper level than exists')
   })
-  return sg.addListMethods(_.flatten(
+  return addListMethods(_.flatten(
     this.map(d => d.getChildren().nodesAtLevel(level, currentLevel + 1)),
   ))
 }
@@ -353,7 +354,7 @@ List.prototype.d3NestEntries = function () {
     if (childProp in val) {
       return {
         key: val.toString(),
-        values: sg.addSupergroupMethods(val.getChildren()).d3NestEntries(),
+        values: addSupergroupMethods(val.getChildren()).d3NestEntries(),
       }
     }
     return {
@@ -374,10 +375,10 @@ List.prototype.d3NestMap = function () {
 }
 List.prototype._sort = Array.prototype.sort
 List.prototype.sort = function (func) {
-  return sg.addListMethods(this._sort(func))
+  return addListMethods(this._sort(func))
 }
 List.prototype.sortBy = function (func) {
-  return sg.addListMethods(_.sortBy(this, func))
+  return addListMethods(_.sortBy(this, func))
 }
 List.prototype.rootList = function (func) {
   if ('parentVal' in this)
@@ -545,32 +546,29 @@ function wholeListNumeric(groups) {
   }
   return isNumeric
 }
-
-var childProp = 'children'
-
-Value.prototype.extendGroupBy // backward compatibility
-    = Value.prototype.addLevel = function (dim, opts) {
-    opts = opts || {}
-    _.each(this.leafNodes() || [this], (d) => {
-      opts.parent = d
-      if (!('in' in d)) { // d.in means it's part of a diffList
-        d.setChildren(sg.supergroup(d.records, dim, opts))
+Value.prototype.addLevel = function (dim, opts) {
+  opts = opts || {}
+  _.each(this.leafNodes() || [this], (d) => {
+    opts.parent = d
+    if (!('in' in d)) { // d.in means it's part of a diffList
+      d.setChildren(supergroup(d.records, dim, opts))
+    }
+    else { // allows adding levels to diffLists. haven't used for a long time
+      if (d.in === 'both') {
+        d.setChildren(diffList(d.from, d.to, dim, opts))
       }
-      else { // allows adding levels to diffLists. haven't used for a long time
-        if (d.in === 'both') {
-          d.setChildren(sg.diffList(d.from, d.to, dim, opts))
-        }
-        else {
-          d.setChildren(sg.supergroup(d.records, dim, opts))
-          _.each(d.getChildren(), (c) => {
-            c.in = d.in
-            c[d.in] = d[d.in]
-          })
-        }
+      else {
+        d.setChildren(supergroup(d.records, dim, opts))
+        _.each(d.getChildren(), (c) => {
+          c.in = d.in
+          c[d.in] = d[d.in]
+        })
       }
-      d.getChildren().parentVal = d
-    })
-  }
+    }
+    d.getChildren().parentVal = d
+  })
+}
+Value.prototype.extendGroupBy = Value.prototype.addLevel
 /* goal here is to make version of addLevel that doesn't
      * modify existing list/vals at all. but it's hard to
      * make a decent clone... gotta do this. */
@@ -583,7 +581,7 @@ Value.prototype.extendGroupBy // backward compatibility
             if ('in' in d) {
               throw new Error("not handling diffLists in concatLevel");
             }
-                d.setChildren(sg.supergroup(d.records, dim, opts));
+                d.setChildren(supergroup(d.records, dim, opts));
 
             d.getChildren().parentVal = d;
         });
@@ -615,7 +613,7 @@ Value.prototype.leafNodes = function (level) {
     }), true)
   }
   // return makeList(ret);
-  return sg.addListMethods(ret)
+  return addListMethods(ret)
 }
 Value.prototype.getChildren = function (emptyListOk = false) {
   if (emptyListOk)
@@ -726,33 +724,34 @@ Value.prototype.clone = function () {
   return newVal
 }
 
-Value.prototype.path // better than 'pedigree', right?
-        = Value.prototype.pedigree = function (opts) {
-    opts = opts || {}
-    const path = []
-    if (!opts.notThis)
-      path.push(this)
-    let ptr = this
-    while ((ptr = ptr.parent)) {
-      path.unshift(ptr)
-    }
-    if (opts.noRoot)
-      path.shift()
-    if (opts.backwards || this.backwards)
-      path.reverse() // kludgy?
+// better than 'pedigree', right?
+Value.prototype.pedigree = function (opts) {
+  opts = opts || {}
+  const path = []
+  if (!opts.notThis)
+    path.push(this)
+  let ptr = this
+  while ((ptr = ptr.parent)) {
+    path.unshift(ptr)
+  }
+  if (opts.noRoot)
+    path.shift()
+  if (opts.backwards || this.backwards)
+    path.reverse() // kludgy?
 
-    // FROM vocab-pop
-    // path = path.map(val=>val.clone())
-    // path = path.map(val=>makeValue(val))
-    _.addSupergroupMethods(path)
-    return path
-    /*   commented out in vocab-pop, doing same here
+  // FROM vocab-pop
+  // path = path.map(val=>val.clone())
+  // path = path.map(val=>makeValue(val))
+  _.addSupergroupMethods(path)
+  return path
+  /*   commented out in vocab-pop, doing same here
           // CHANGING -- HOPE THIS DOESN'T BREAK STUFF (pedigree isn't
           // documented yet)
           if (!opts.asValues) return _.chain(path).invokeMap('valueOf').value();
           return path;
           */
-  }
+}
+Value.prototype.path = Value.prototype.pedigree
 Value.prototype.descendants = function (opts) {
   // these two lines fix a treelike bug, hope they don't do harm
   if (!this.hasChildren())
@@ -844,7 +843,7 @@ Value.prototype.fixDepth = function (depth) {
  *
  * @memberof supergroup
  */
-sg.aggregate = function (list, numericDim) {
+const aggregate = function (list, numericDim) {
   if (numericDim) {
     list = _.map(list, numericDim)
   }
@@ -872,11 +871,11 @@ sg.aggregate = function (list, numericDim) {
  *
  * @memberof supergroup
  */
-sg.diffList = function (from, to, dim, opts) {
-  const fromList = sg.supergroup(from.records, dim, opts)
-  const toList = sg.supergroup(to.records, dim, opts)
-  // var list = makeList(sg.compare(fromList, toList, dim));
-  const list = sg.addListMethods(sg.compare(fromList, toList, dim))
+const diffList = function (from, to, dim, opts) {
+  const fromList = supergroup(from.records, dim, opts)
+  const toList = supergroup(to.records, dim, opts)
+  // var list = makeList(compare(fromList, toList, dim));
+  const list = addListMethods(compare(fromList, toList, dim))
   list.dim = (opts && opts.dimName) ? opts.dimName : dim
   return list
 }
@@ -890,7 +889,7 @@ sg.diffList = function (from, to, dim, opts) {
  *
  * @memberof supergroup
  */
-sg.compare = function (A, B, dim) {
+const compare = function (A, B, dim) {
   const a = _.chain(A).map((d) => {
     return `${d}`
   })
@@ -957,7 +956,7 @@ sg.compare = function (A, B, dim) {
  *
  * @memberof supergroup
  */
-sg.compareValue = function (from, to) { // any reason to keep this?
+const compareValue = function (from, to) { // any reason to keep this?
   if (from.dim !== to.dim) {
     throw new Error('not sure what you\'re trying to do')
   }
@@ -988,26 +987,26 @@ _.extend(NumberValue.prototype, Value.prototype)
  * @memberof supergroup
  */
 
-sg.addSupergroupMethods
+const addSupergroupMethods = addListMethods
 
-        = sg.addListMethods = function (arr) {
-    arr = arr || [] // KLUDGE for treelike
-    if (arr.isSupergroupList)
-      return arr
-    for (const method in List.prototype) {
-      Object.defineProperty(arr, method, {
-        value: List.prototype[method],
-      })
-    }
+function addListMethods(arr) {
+  arr = arr || [] // KLUDGE for treelike
+  if (arr.isSupergroupList)
     return arr
+  for (const method in List.prototype) {
+    Object.defineProperty(arr, method, {
+      value: List.prototype[method],
+    })
   }
+  return arr
+}
 
 // can't easily subclass Array, so this explicitly puts the List
 // methods on an Array that's supposed to be a List
 function makeList(arr_arg) {
   const arr = []
   arr.push.apply(arr, arr_arg)
-  sg.addListMethods(arr)
+  addListMethods(arr)
   /*
       //arr.__proto__ = List.prototype;
       for(var method in List.prototype) {
@@ -1019,7 +1018,7 @@ function makeList(arr_arg) {
   return arr
 }
 
-sg.hierarchicalTableToTree = function (data, parentProp, childProp) {
+const hierarchicalTableToTree = function (data, parentProp, childProp) {
   // does not do the right thing if a value has two parents
   // also, does not yet fix depth numbers
   /*
@@ -1075,14 +1074,14 @@ sg.hierarchicalTableToTree = function (data, parentProp, childProp) {
   data = ex
   parentProp = 'p'
   childProp = 'c'
-  // let parents = sg.supergroup(ex, ['p', 'c']); // 2-level grouping with all parent/child pairs
-  // const parents = sg.supergroup(data, [parentProp, childProp]); // 2-level grouping with all parent/child pairs
-  const p2c = sg.supergroup(data, [parentProp, childProp])
-  const c2p = sg.supergroup(data, [childProp, parentProp])
+  // let parents = supergroup(ex, ['p', 'c']); // 2-level grouping with all parent/child pairs
+  // const parents = supergroup(data, [parentProp, childProp]); // 2-level grouping with all parent/child pairs
+  const p2c = supergroup(data, [parentProp, childProp])
+  const c2p = supergroup(data, [childProp, parentProp])
   // [a, b, c, d, e, f]
   const childNodes = p2c.leafNodes()
   const actualLeafNodes = childNodes.filter(d => !p2c.lookup(d))
-  const topLevelNodes = sg.addSupergroupMethods([])
+  const topLevelNodes = addSupergroupMethods([])
   actualLeafNodes.forEach((leaf) => {
     console.log(`leaf: ${leaf.namePathPlus()}`)
     let pointer = leaf
@@ -1119,7 +1118,7 @@ sg.hierarchicalTableToTree = function (data, parentProp, childProp) {
   // a ==> [b, c, e], b ==> [e, f], e ==> [h]
   const children = parents.leafNodes()
   // [b, c, d, e, f, f, g, h, h]
-  const topLevelParents = sg.addSupergroupMethods(
+  const topLevelParents = addSupergroupMethods(
     _.differenceBy(parents.rawValues(), children.rawValues()).map(d => parents.find(p => p == d)),
   )
   // [a]
@@ -1141,7 +1140,7 @@ sg.hierarchicalTableToTree = function (data, parentProp, childProp) {
   //   asParent.depths = depths;
   // }
   // const minDepth = _.min(depths);
-  // return sg.addSupergroupMethods(topLevelParents);
+  // return addSupergroupMethods(topLevelParents);
 }
 
 function filterOutEmpty(recs, dim) {
@@ -1151,13 +1150,13 @@ function filterOutEmpty(recs, dim) {
 }
 
 export default {
-  supergroup: sg.supergroup,
-  addSupergroupMethods: sg.addSupergroupMethods,
-  sgDiffList: sg.diffList,
-  sgCompare: sg.compare,
-  sgCompareValue: sg.compareValue,
-  sgAggregate: sg.aggregate,
-  hierarchicalTableToTree: sg.hierarchicalTableToTree,
+  supergroup,
+  addSupergroupMethods,
+  sgDiffList: diffList,
+  sgCompare: compare,
+  sgCompareValue: compareValue,
+  sgAggregate: aggregate,
+  hierarchicalTableToTree,
   stateClass: sg.State,
 
   // FROM https://gist.github.com/AndreasBriese/1670507
@@ -1211,6 +1210,3 @@ export default {
     return tmpObj.length % 2 ? tmpObj[Math.floor(tmpObj.length / 2)] : (_.isNumber(tmpObj[tmpObj.length / 2 - 1]) && _.isNumber(tmpObj[tmpObj.length / 2])) ? (tmpObj[tmpObj.length / 2 - 1] + tmpObj[tmpObj.length / 2]) / 2 : tmpObj[tmpObj.length / 2 - 1]
   },
 }
-
-// if (typeof module !== "undefined")
-//   module.exports = _;
