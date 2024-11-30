@@ -35,7 +35,9 @@
   ],
   "scripts": {
     "build": "unbuild",
-    "bump": "op run --env-file=\"./.env\" -- pnpm bumpp && changelogithub",
+    "bump": "op run --env-file=\"./.env\" -- pnpm bumpp",
+    "bump:up": "bump && changelog",
+    "changelog": "op run --env-file=\"./.env\" -- changelogithub GITHUB_TOKEN",
     "dev": "unbuild --stub",
     "lint": "eslint .",
     "prepublishOnly": "nr build",
