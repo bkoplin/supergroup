@@ -701,6 +701,7 @@ var supergroup = (function() {
     // FROM vocab-pop
     Value.prototype.clone = function () {
       // just throwing together quick...need to look at later
+      debugger;
       let newVal = makeValue(this)
       _.extend(newVal, _.cloneDeep(this))
       if (this.hasChildren()) {
@@ -779,6 +780,13 @@ var supergroup = (function() {
     Value.prototype.rootList = function () {
       return this.parentList.rootList();
     };
+    Value.prototype.fixDepth = function(newDepth) {
+        const incr = newDepth - this.depth;
+        this.depth = newDepth;
+        for (let d of this.descendants()) {
+          d.depth += incr;
+        }
+    }
     /* not working yet
     Value.clone() {
       var holdChildren = this.getChildren(),
