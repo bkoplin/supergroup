@@ -1,5 +1,22 @@
-// @description local reference to supergroup namespace
-const sg = {}
+import {
+  assignIn,
+  clone as clone_,
+  cloneDeep,
+  each,
+  every,
+  groupBy,
+  has,
+  isArray,
+  isNaN,
+  keys,
+  map,
+  tail,
+  toPairs,
+} from 'lodash'
+import {
+  State,
+} from './State'
+
 let childProp = 'children'
 
 /* @exported function supergroup.group(recs, dim, opts)
@@ -26,55 +43,33 @@ const supergroup = function (recs, dim, opts) {
 
   // commented out stuff here from vocab-pop version, never did whatever I was trying
   // wanted to keep opts clean, but it breaks the parent ref
-  // opts = _.cloneDeep(opts || {})
+  // opts = cloneDeep(opts || {})
   opts = opts || {}
 
   // if (opts.allowCloning) {
   recs = recs.map((rec, i) => {
-    const clone = _.clone(rec)
+    const clone = clone_(rec)
     clone._recIdx = i
     return clone
   })
   // }
-  if (_(dim).isArray())
+  if (isArray(dim))
     return multiDimList(recs, dim, opts)
   recs = opts.preListRecsHook ? opts.preListRecsHook(recs) : recs
   childProp = opts.childProp || childProp
 
-  if (opts.multiValuedGroup) {
-    if (opts.wasMultiDim) {
-      throw new Error('If you want multValuedGroups on multi-level groupings, you need to use addLevel')
-    }
-    else {
-      if (!opts.preventScalarInMultiValuedGroup) {
-        const dimFunc = typeof dim === 'function'
-          ? dim
-          : d => d[dim]
-        var arrayAlwaysDim
-                = (val) => {
-                  const retVal = dimFunc(val)
-                  if (Array.isArray(retVal))
-                    return retVal
-                  return [retVal]
-                }
-      }
-      var groups = _.multiValuedGroupBy(recs, arrayAlwaysDim)
-    }
-  }
-  else {
-    if (opts.truncateBranchOnEmptyVal)
-      recs = filterOutEmpty(recs, dim)
-    var groups = _.groupBy(recs, dim) // use Underscore's groupBy: http://underscorejs.org/#groupBy
-  }
+  if (opts.truncateBranchOnEmptyVal)
+    recs = filterOutEmpty(recs, dim)
+  let groups = groupBy(recs, dim) // use Underscore's groupBy: http://underscorejs.org/#groupBy
   if (opts.excludeValues) { // why isn't truncateBranchOnEmptyVal treated as an excludeValue?
-    _.each(opts.excludeValues, (d) => {
+    each(opts.excludeValues, (d) => {
       delete groups[d]
     })
   }
-  const isNumeric = _(opts).has('isNumeric')
+  const isNumeric = has(opts, 'isNumeric')
     ? opts.isNumeric
     : wholeListNumeric(groups) // does every group Value look like a number or a missing value?
-  var groups = _.map(_.toPairs(groups), (pair, i) => { // setup Values for each group in List
+  groups = map(toPairs(groups), (pair, _i) => { // setup Values for each group in List
     const rawVal = pair[0]
     let val
     if (isNumeric) {
@@ -121,7 +116,7 @@ const supergroup = function (recs, dim, opts) {
   groups.dim = (opts.dimName) ? opts.dimName : dim
   groups.isNumeric = isNumeric
 
-  _.each(groups, (group, i) => {
+  each(groups, (group, _i) => {
     group.parentList = groups
     // group.idxInParentList = i; // maybe a good idea, but don't need it yet
   })
@@ -135,51 +130,36 @@ const supergroup = function (recs, dim, opts) {
 }
 
 // nested groups, each dim is a level in hierarchy
-const multiDimList = function (recs, dims, opts) {
+function multiDimList(recs, dims, opts) {
   opts.wasMultiDim = true // pretty kludgy
   const groups = supergroup(recs, dims[0], opts)
-  _.chain(dims).tail().each((dim) => {
-      groups.addLevel(dim, opts)
-    }).value()
+  const allDimsButFirst = tail(dims)
+  each(allDimsButFirst, (dim) => {
+    groups.addLevel(dim, opts)
+  })
   return groups
+}
+
+function wholeListNumeric(groups) {
+  const isNumeric = every(keys(groups), (k) => {
+    return k === null
+      || k === undefined
+      || (!isNaN(Number(k)))
+      || ['null', '.', 'undefined'].includes(k.toLowerCase())
+  })
+  if (isNumeric) {
+    each(keys(groups), (k) => {
+      if (isNaN(k)) {
+        delete groups[k] // getting rid of NULL values in dim list!!
+      }
+    })
+  }
+  return isNumeric
 }
 // @class List
 // @description Native Array of groups with various added methods and properties.
 // Methods described below.
 function List() {
-}
-
-// @class Value
-// @description Supergroup Lists are composed of Values which are
-// String or Number objects representing group values.
-// Methods described below.
-function Value() {
-}
-
-// @class State
-// @description with a couple exceptions, supergroups should not
-// mutate after creation. States are a way to track selection/highlighting
-// states without mutating.
-function State(list) {
-  this.list = list
-  this.selectedVals = []
-  // this.selectedRecs = [];
-}
-
-sg.State = State
-State.prototype.selectByVal = function (val) {
-  if (val.rootList() !== this.list) // assume state only on root lists
-    throw new Error('state only on root lists (if state even does anything)')
-  this.selectedVals.push(val)
-}
-/*
-    State.prototype.selectByFilter = function(filt) {
-
-        this.selectedVals.push(val);
-    }
-    */
-State.prototype.selectedRecs = function () {
-  return _.chain(this.selectedVals).map('records').flatten().value()
 }
 
 List.prototype.state = function () {
@@ -193,10 +173,10 @@ List.prototype.asRootVal = function (name, dimName) {
   val.depth = 0
   val.records = this.records
   val.setChildren(this)
-  _.each(val.getChildren(), (d) => {
+  each(val.getChildren(), (d) => {
     d.parent = val
   })
-  _.each(val.descendants(), (d) => {
+  each(val.descendants(), (d) => {
     d.depth = d.depth + 1
   })
   return val
@@ -288,7 +268,7 @@ List.prototype.nodesAtLevel = function (level, currentLevel = 0) {
   ))
 }
 List.prototype.addLevel = function (dim, opts) {
-  _.each(this, (val) => {
+  each(this, (val) => {
     val.addLevel(dim, opts)
   })
   return this
@@ -300,7 +280,7 @@ List.prototype.addLevelPure = function (dim, opts) {
   // breaks prototype two levels up!!!!!!!!!!!!! no time to fix
   const clone = this.clone()
   // if (clone[0] && clone[0].children) debugger
-  _.each(clone, (val) => {
+  each(clone, (val) => {
     // val.addLevelPure(dim, opts);
     val.addLevel(dim, opts)
   })
@@ -308,13 +288,13 @@ List.prototype.addLevelPure = function (dim, opts) {
 }
 List.prototype.clone = function () {
   const clone = Object.assign([], this)
-  clone.records = _.cloneDeep(this.records)
-  _.addSupergroupMethods(clone)
+  clone.records = cloneDeep(this.records)
+  addSupergroupMethods(clone)
   const list = this
   clone.splice(0, clone.length, ...clone.map(
     (val) => {
       const newVal = makeValue(val)
-      _.extend(newVal, _.cloneDeep(val))
+      assignIn(newVal, cloneDeep(val))
       newVal.records = val.records.map(rec => clone.records[rec._recIdx])
       newVal.parentList = clone
       // if (val.children) debugger
@@ -330,18 +310,18 @@ List.prototype.clone = function () {
 
 // }
 List.prototype.namePaths = function (opts) {
-  return _.map(this, (d) => {
+  return map(this, (d) => {
     return d.namePath(opts)
   })
 }
 List.prototype.namePathsPlus = function (opts) {
-  return _.map(this, (d) => {
+  return map(this, (d) => {
     return d.namePathPlus(opts)
   })
 }
 // apply a function to the records of each group
 List.prototype.aggregates = function (func, field, ret) {
-  const results = _.map(this, (val) => {
+  const results = map(this, (val) => {
     return val.aggregate(func, field)
   })
   if (ret === 'dict')
@@ -350,7 +330,7 @@ List.prototype.aggregates = function (func, field, ret) {
 }
 
 List.prototype.d3NestEntries = function () {
-  return _.map(this, (val) => {
+  return map(this, (val) => {
     if (childProp in val) {
       return {
         key: val.toString(),
@@ -438,7 +418,7 @@ List.prototype.collapseOnlyChildren = function () {
         out.push(`${indent}${this}, ${recs}`)
       }
       if (funcs) {
-        _.each(funcs, (f,k) => {
+        each(funcs, (f,k) => {
           out.push(`${indent}  ${k}: ${f(this)}`)
         })
         out.push('')
@@ -467,6 +447,13 @@ List.prototype.summary = function (depth = 0) {
   out.push(this.map(val => val.summary(depth + 1)).join('\n'))
   return out.join('\n')
 }
+
+// @class Value
+// @description Supergroup Lists are composed of Values which are
+// String or Number objects representing group values.
+// Methods described below.
+function Value() {
+}
 Value.prototype.hasSiblings = function () {
   return this.parentList && this.parentList.length > 1
 }
@@ -491,64 +478,9 @@ Value.prototype.summary = function (depth = 0) {
   return summary
 }
 
-function makeValue(v_arg) {
-  if (isNaN(v_arg)) {
-    return makeStringValue(v_arg)
-  }
-  else {
-    return makeNumberValue(v_arg)
-  }
-}
-
-function StringValue() {
-}
-
-// StringValue.prototype = new String;
-function makeStringValue(s_arg) {
-  const S = new String(s_arg)
-  // S.__proto__ = StringValue.prototype; // won't work in IE10
-  for (const method in StringValue.prototype) {
-    Object.defineProperty(S, method, {
-      value: StringValue.prototype[method],
-    })
-  }
-  return S
-}
-
-function NumberValue() {
-}
-
-// NumberValue.prototype = new Number;
-function makeNumberValue(n_arg) {
-  const N = new Number(n_arg)
-  // N.__proto__ = NumberValue.prototype;
-  for (const method in NumberValue.prototype) {
-    Object.defineProperty(N, method, {
-      value: NumberValue.prototype[method],
-    })
-  }
-  return N
-}
-
-function wholeListNumeric(groups) {
-  const isNumeric = _.every(_.keys(groups), (k) => {
-    return k === null
-      || k === undefined
-      || (!isNaN(Number(k)))
-      || ['null', '.', 'undefined'].includes(k.toLowerCase())
-  })
-  if (isNumeric) {
-    _.each(_.keys(groups), (k) => {
-      if (isNaN(k)) {
-        delete groups[k] // getting rid of NULL values in dim list!!
-      }
-    })
-  }
-  return isNumeric
-}
 Value.prototype.addLevel = function (dim, opts) {
   opts = opts || {}
-  _.each(this.leafNodes() || [this], (d) => {
+  each(this.leafNodes() || [this], (d) => {
     opts.parent = d
     if (!('in' in d)) { // d.in means it's part of a diffList
       d.setChildren(supergroup(d.records, dim, opts))
@@ -559,7 +491,7 @@ Value.prototype.addLevel = function (dim, opts) {
       }
       else {
         d.setChildren(supergroup(d.records, dim, opts))
-        _.each(d.getChildren(), (c) => {
+        each(d.getChildren(), (c) => {
           c.in = d.in
           c[d.in] = d[d.in]
         })
@@ -576,7 +508,7 @@ Value.prototype.extendGroupBy = Value.prototype.addLevel
 /*
     Value.prototype.concatLevel = function(dim, opts) {
         opts = opts || {};
-        _.each(this.leafNodes() || [this], function(d) {
+        each(this.leafNodes() || [this], function(d) {
             opts.parent = d;
             if ('in' in d) {
               throw new Error("not handling diffLists in concatLevel");
@@ -608,7 +540,7 @@ Value.prototype.leafNodes = function (level) {
     level = Infinity
   }
   if (level !== 0 && this.getChildren() && this.getChildren().length && (!level || this.depth < level)) {
-    ret = _.flatten(_.map(this.getChildren(), (c) => {
+    ret = _.flatten(map(this.getChildren(), (c) => {
       return c.leafNodes(level)
     }), true)
   }
@@ -637,7 +569,7 @@ Value.prototype.addRecordsAsChildrenToLeafNodes = function (truncateEmpty) {
   // to be an array of raw records
   function fixLeaf(node) {
     node.children = node.records
-    _.each(node.children, (rec) => {
+    each(node.children, (rec) => {
       rec.parent = node
       rec.depth = node.depth + 1
       for (const method in Value.prototype) {
@@ -659,52 +591,61 @@ Value.prototype.addRecordsAsChildrenToLeafNodes = function (truncateEmpty) {
     })
   }
   else {
-    _.each(this.leafNodes(), (node) => {
+    each(this.leafNodes(), (node) => {
       fixLeaf(node)
     })
   }
   return this
 }
 
-/*  didn't make this yet, just copied from above
-    Value.prototype.descendants = function(level) {
-        var ret = [this];
-        if (level !== 0 && this.getChildren() && (!level || this.depth < level))
-            ret = _.flatten(_.map(this.getChildren(), function(c) {
-                return c.leafNodes(level);
-            }), true);
-        return makeList(ret);
-    };
-    */
-function delimOpts(opts) {
+Value.prototype.dimPath = function (opts?: string | {
+  delim?: string
+  dimName?: boolean
+  asArray?: boolean
+  noRoot?: boolean
+  backwards?: boolean
+  notThis?: boolean
+} = {
+  delim: '/',
+  dimName: true,
+}) {
   if (typeof opts === 'string') {
-    opts = {
+    return this.namePath({
+      delim: opts,
+      dimName: true,
+    })
+  }
+  return this.namePath(opts)
+}
+Value.prototype.namePath = function (opts?: string | {
+  delim?: string
+  dimName?: boolean
+  asArray?: boolean
+  noRoot?: boolean
+  backwards?: boolean
+  notThis?: boolean
+} = {
+  delim: '/',
+}) {
+  let newOpts: Exclude<typeof opts, string>
+  if (typeof opts === 'string') {
+    newOpts = {
       delim: opts,
     }
   }
-  opts = opts || {}
-  if (!_(opts).has('delim'))
-    opts.delim = '/'
-  return opts
-}
-
-Value.prototype.dimPath = function (opts) {
-  opts = delimOpts(opts)
-  opts.dimName = true
-  return this.namePath(opts)
-}
-Value.prototype.namePath = function (opts) {
-  opts = delimOpts(opts)
-  let path = this.pedigree(opts)
-  if (opts.dimName)
-    path = _.map(path, 'dim')
-  if (opts.asArray)
+  else {
+    newOpts = clone_(opts)
+  }
+  let path = this.pedigree(newOpts)
+  if (newOpts.dimName)
+    path = map(path, 'dim')
+  if (newOpts.asArray)
     return path
-  return path.join(opts.delim)
+  return path.join(newOpts.delim)
   /*
       var delim = opts.delim || '/';
       return (this.parent ?
-              this.parent.namePath(_.extend({},opts,{notLeaf:true})) : '') +
+              this.parent.namePath(assignIn({},opts,{notLeaf:true})) : '') +
           ((opts.noRoot && this.depth===0) ? '' :
               (this + (opts.notLeaf ? delim : ''))
            )
@@ -715,9 +656,8 @@ Value.prototype.namePath = function (opts) {
 // FROM vocab-pop
 Value.prototype.clone = function () {
   // just throwing together quick...need to look at later
-  debugger
   const newVal = makeValue(this)
-  _.extend(newVal, _.cloneDeep(this))
+  assignIn(newVal, cloneDeep(this))
   if (this.hasChildren()) {
     newVal[childProp] = this.getChildren().clone()
   }
@@ -725,7 +665,14 @@ Value.prototype.clone = function () {
 }
 
 // better than 'pedigree', right?
-Value.prototype.pedigree = function (opts) {
+Value.prototype.pedigree = function (opts?: {
+  delim?: string
+  dimName?: boolean
+  asArray?: boolean
+  noRoot?: boolean
+  backwards?: boolean
+  notThis?: boolean
+}) {
   opts = opts || {}
   const path = []
   if (!opts.notThis)
@@ -742,7 +689,7 @@ Value.prototype.pedigree = function (opts) {
   // FROM vocab-pop
   // path = path.map(val=>val.clone())
   // path = path.map(val=>makeValue(val))
-  _.addSupergroupMethods(path)
+  addSupergroupMethods(path)
   return path
   /*   commented out in vocab-pop, doing same here
           // CHANGING -- HOPE THIS DOESN'T BREAK STUFF (pedigree isn't
@@ -755,7 +702,7 @@ Value.prototype.path = Value.prototype.pedigree
 Value.prototype.descendants = function (opts) {
   // these two lines fix a treelike bug, hope they don't do harm
   if (!this.hasChildren())
-    this.setChildren(_.addSupergroupMethods([]))
+    this.setChildren(addSupergroupMethods([]))
 
   return this.getChildren() ? this.getChildren().flattenTree() : undefined
 }
@@ -794,8 +741,8 @@ Value.prototype.previous = function () {
 }
 Value.prototype.aggregate = function (func, field) {
   if (_.isFunction(field))
-    return func(_.map(this.records, field))
-  return func(_.map(this.records, field))
+    return func(map(this.records, field))
+  return func(map(this.records, field))
 }
 Value.prototype.rootList = function () {
   return this.parentList.rootList()
@@ -835,6 +782,47 @@ Value.prototype.fixDepth = function (depth) {
   (this.descendants() ?? []).forEach(d => d.depth += incr)
 }
 
+function makeValue(v_arg) {
+  if (isNaN(v_arg)) {
+    return makeStringValue(v_arg)
+  }
+  else {
+    return makeNumberValue(v_arg)
+  }
+}
+
+function StringValue() {
+}
+
+// StringValue.prototype = new String;
+function makeStringValue(s_arg) {
+  const S = String(s_arg)
+  // S.__proto__ = StringValue.prototype; // won't work in IE10
+  for (const method in StringValue.prototype) {
+    Object.defineProperty(S, method, {
+      value: StringValue.prototype[method],
+    })
+  }
+  return S
+}
+
+function NumberValue() {
+}
+
+// NumberValue.prototype = new Number;
+function makeNumberValue(n_arg) {
+  const N = Number(n_arg)
+  // N.__proto__ = NumberValue.prototype;
+  for (const method in NumberValue.prototype) {
+    Object.defineProperty(N, method, {
+      value: NumberValue.prototype[method],
+    })
+  }
+  return N
+}
+assignIn(StringValue.prototype, Value.prototype)
+assignIn(NumberValue.prototype, Value.prototype)
+
 /**
  * Summarize records by a dimension
  *
@@ -845,7 +833,7 @@ Value.prototype.fixDepth = function (depth) {
  */
 const aggregate = function (list, numericDim) {
   if (numericDim) {
-    list = _.map(list, numericDim)
+    list = map(list, numericDim)
   }
   return _.reduce(list, (memo, num) => {
     memo.sum += num
@@ -899,7 +887,7 @@ const compare = function (A, B, dim) {
   })
 .value()
   const comp = {}
-  _.each(A, (d, i) => {
+  each(A, (d, i) => {
     comp[`${d}`] = {
       name: `${d}`,
       in: 'from',
@@ -908,7 +896,7 @@ const compare = function (A, B, dim) {
       dim,
     }
   })
-  _.each(B, (d, i) => {
+  each(B, (d, i) => {
     if ((`${d}`) in comp) {
       const c = comp[`${d}`]
       c.in = 'both'
@@ -931,7 +919,7 @@ const compare = function (A, B, dim) {
   })
 .map((d) => {
     var val = makeValue(d.name)
-    _.extend(val, d)
+    assignIn(val, d)
     val.records = []
     if ('from' in d)
       val.records = val.records.concat(d.from.records)
@@ -971,8 +959,6 @@ const compareValue = function (from, to) { // any reason to keep this?
   val.dim = from.dim
   return val
 }
-_.extend(StringValue.prototype, Value.prototype)
-_.extend(NumberValue.prototype, Value.prototype)
 
 /**
  * Sometimes a List gets turned into a standard array,
@@ -987,7 +973,7 @@ _.extend(NumberValue.prototype, Value.prototype)
  * @memberof supergroup
  */
 
-const addSupergroupMethods = addListMethods
+function addSupergroupMethods(arr) { return addListMethods(arr) }
 
 function addListMethods(arr) {
   arr = arr || [] // KLUDGE for treelike
@@ -1157,7 +1143,6 @@ export default {
   sgCompareValue: compareValue,
   sgAggregate: aggregate,
   hierarchicalTableToTree,
-  stateClass: sg.State,
 
   // FROM https://gist.github.com/AndreasBriese/1670507
   // Return aritmethic mean of the elements
@@ -1172,7 +1157,7 @@ export default {
       };
       return result
     };
-    _.each(obj, (value, index, list) => {
+    each(obj, (value, index, list) => {
       const computed = iterator ? iterator.call(context, value, index, list) : value
       result += computed
     })
@@ -1198,11 +1183,11 @@ export default {
       return Infinity
     let tmpObj = []
     if (!iterator && _.isArray(obj)) {
-      tmpObj = _.clone(obj)
+      tmpObj = clone_(obj)
       tmpObj.sort((f, s) => { return f - s })
     }
     else {
-      _.isArray(obj) && _.each(obj, (value, index, list) => {
+      _.isArray(obj) && each(obj, (value, index, list) => {
         tmpObj.push(iterator ? iterator.call(context, value, index, list) : value)
         tmpObj.sort()
       })
