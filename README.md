@@ -1,5 +1,16 @@
 Supergroup
 ==========
+
+> **⚠️ Docs lag notice (v2.0.0).** supergroup 2.0.0 is a ground-up
+> rewrite — ES modules, TypeScript, zero dependencies, no
+> Underscore/Lo-Dash mixin — and everything below this banner still
+> describes **v1**. The demo site at sigfried.github.io/supergroup is
+> also still v1. A rewritten README and a live docs/demo page are in
+> progress. Until they land, see the
+> [v2 design spec](https://github.com/Sigfried/supergroup/blob/master/planning/specs/2026-07-13-supergroup-v2-design.md)
+> (including its v1 → v2 migration table) and the typed API surface in
+> [`src/`](https://github.com/Sigfried/supergroup/tree/master/src).
+
 Supergroup performs single- or multi-level grouping on collections of records. It provides a host of utitily and conveniece methods on the returned array of group values as well as on each of these specific group values. If a multi-level grouping is performed, each value's `children` array also acts as a Supergroup list.
 
 Supergroup is implemented as an Underscore or LoDash mixin, so just include one of those first:
