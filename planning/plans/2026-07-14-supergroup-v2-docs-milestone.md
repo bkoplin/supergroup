@@ -2274,6 +2274,13 @@ cells run — CDN imports behave the same as locally, but confirm.
 
 ## Task 13: publish 2.0.0
 
+**DONE EARLY (2026-07-28), out of plan order:** SG published 2.0.0 so
+dmvd could install v2 from the registry. Steps 1-3 complete (gate green
+97/97; tarball 41 files verified; registry `latest: 2.0.0`). README got
+a docs-lag banner first (commit 9fbfce6) — **the Task 10 README rewrite
+must remove it.** Step 4 (tag v2.0.0 + push) left to SG. Task 14
+(post-publish pointers) NOT pulled forward.
+
 - [ ] **Step 1: Pre-publish gate**
 
 ```bash

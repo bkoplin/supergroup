@@ -1,8 +1,12 @@
 # supergroup v2 — docs milestone design
 
-Status: approved design, pre-implementation. Follows the
+Status: approved design, implementation in progress. Amended 2026-07-14
+(cell mechanics round), 2026-07-16 (examples round: citation, ASI hint,
+recordLeaves resolution), 2026-07-28 (examples redesign round: API-index
+structure, data consolidation, display helpers, viz set). Follows the
 [v2 design spec](2026-07-13-supergroup-v2-design.md) (M1–M3 complete on
-master). This milestone ends with 2.0.0 published as `latest`.
+master). 2.0.0 was published as `latest` early, 2026-07-28 (see Order of
+work).
 
 ## Deliverables
 
@@ -45,9 +49,11 @@ page works locally (any static server) and on Pages identically. An npm
 script (`build:site`) runs the dist build and copies it in; CI-free, so
 keeping it fresh is a documented manual step in the release checklist.
 
-External libraries — d3, CodeMirror, dag-browser-widget — load from esm.sh
-via an import map. **Verify early** that dag-browser-widget loads as browser
-ESM from esm.sh; if it can't, its demo degrades to pretty-printed
+External libraries — d3, d3-sankey, CodeMirror, react,
+dag-browser-widget, gridjs, json-formatter-js, and duckdb-wasm (via
+jsdelivr) — load from CDN via an import map (list as of 2026-07-28).
+**Verify early** that dag-browser-widget loads as browser ESM from
+esm.sh; if it can't, its demo degrades to pretty-printed
 `toDagBrowserNodes` output.
 
 ### Live cells
@@ -76,26 +82,56 @@ output and deletes exactly the window vars that cell published. `let`/
 unavailable inside `eval` code (no cell uses it); if a cell's output is
 a thenable, the runtime awaits it before rendering.
 
-**Display: no magic.** The renderer type-sniffs nothing from the
-library: a DOM node appends as-is (d3 SVGs, the DBW embed), a string
-renders in a `<pre>`, anything else pretty-prints as circular-safe JSON.
-Anything shaped that the site displays is produced by an explicit
-formatting function the reader could call in their own console (see
-"Library additions"). Cells that show structure end with e.g.
-`prettyPrint(sg, {maxDepth: 2})` — the docs demo the formatting API by
-using it.
+**Display: explicit, renderer dumb** (amended 2026-07-28). The
+renderer keeps exactly three rules and type-sniffs nothing further: a
+DOM node appends as-is, a string renders in a `<pre>`, anything else
+pretty-prints as circular-safe JSON. All richer display is explicit,
+ideally single-line, code in the cell, via **page display helpers** —
+window globals provided by livecells.js that return DOM nodes (so they
+flow through the DOM rule):
+
+- `gridTable(records, opts?)` — sortable/paged Grid.js table.
+- `jsonView(x, opts?)` — collapse/expand colored JSON
+  (json-formatter-js).
+- `treeView(x, opts?)` — collapsible tree of a supergroup / DAG /
+  sequence / compare result; for compare results, nodes only in `b`
+  render green (added), only in `a` red (removed) — the vs-hub diff
+  idiom.
+- `print(...args)` — appends each argument rendered by the renderer's
+  three rules; lets a cell show several labeled values
+  (`print('roots:', g.roots.length, ...)`) instead of packing one JSON
+  object.
+- `reactMount(Component, props, {height}?)` — creates the sized
+  container, mounts via createRoot, returns the container; slims React
+  embeds (DBW) to their interesting lines.
+
+Console parity, rescoped: cell *code* must still run when pasted into
+the page's devtools console (the helpers are window globals, so it
+does); page *display* may be richer than what `console.log` would show.
+The library's formatting functions (`toTable`, `prettyPrint`,
+`summary`) remain the no-DOM, string-returning story for library users'
+own consoles; cells use them where text output is the point, page
+helpers where it isn't.
 
 **Dataset preview cards.** Where each dataset is introduced, an empty
 marker element (`<div class="dataset" data-name="…">`) is populated by
 livecells.js with the name, `N rows × M cols`, a download link, and an
-expandable preview of the first rows (HTML table — site furniture, like
-the download link, not cell output).
+expandable preview of the first rows — rendered with the same Grid.js
+tables as `gridTable` (amended 2026-07-28; fixes overflow, one table
+look everywhere).
+
+**Cell source dedent** (added 2026-07-28). The runner strips the common
+leading indent from cell text, so `<pre class="cell">` contents are
+indented to match their surrounding HTML in `docs/index.html` — the
+page source stays readable. Code boxes get a max height with scroll and
+are user-resizable.
 
 Cell scope: every export of `supergroup`, `supergroup/dag`,
-`/sequence`, `/compare`, `/adapters`, `/formatting`, plus `d3` and the
-datasets. Everything in scope is also pre-assigned to `window`.
+`/sequence`, `/compare`, `/adapters`, `/formatting`, plus `d3`, `sql`,
+the page display helpers, and the datasets. Everything in scope is also
+pre-assigned to `window`.
 
-### Library additions (driven by the no-magic display rule)
+### Library additions (the library stays no-DOM, string-returning)
 
 New subpath module `supergroup/formatting`: explicit formatting
 functions. Every function returns a **string**, so what the site
@@ -110,8 +146,10 @@ the library).
   indentation.
 - `summary(x)` — the shape line, kept separate from `prettyPrint`:
   `110 roots · 2,816 nodes · 8,618 records`.
-- `toTable(records, {maxRows, columns})` — aligned monospace text table
-  for arrays of plain records.
+- `toTable(records, {maxRows, columns, format})` — text table for
+  arrays of plain records; `format: 'text'` (default, aligned
+  monospace) `| 'markdown'` (pipe table, pasteable into GitHub/Slack)
+  (format option added 2026-07-28).
 - **Truncation only on request**: `maxDepth`/`maxChildren`/`maxRows`
   have no defaults — output is complete unless an option is passed, and
   applied truncation is always explicit in the output (`… 105 more`),
@@ -133,62 +171,89 @@ docs. v2 replacement is an adapter option, not core mutation:
 node in the emitted tree gets `children` = its records mapped to
 `{id: `${node.id}/r${i}`, name: recordLeaves(r, i), key: null,
 records: [r]}`. No option → output unchanged. The docs page demonstrates
-it with a live treemap cell (patients by Physician/Unit, synthetic root,
-rects sized by `d.records[0].Charge`), and the migration table maps the
-v1 method to this option.
+it with the DAG section's live treemap cell (drug eras under ATC
+classes, one rect per era — re-homed 2026-07-28 from the original
+patients/Charge sketch when the data consolidated), and the migration
+table maps the v1 method to this option.
 
 These are src changes: implement + test, then rebuild the dist and
 re-run `build:site` so the vendored copy carries them before the site
 cells use them.
 
-### Content outline
+### Content outline (rewritten 2026-07-28 — examples redesign round)
 
-Material is mined from three sources: the old README (v1 walkthrough), the
-gh-pages `doc.md` (live-render hospital-data walkthrough), and the Toptal
-article
-(<https://www.toptal.com/developers/javascript/ultimate-in-memory-data-collection-manipulation-with-supergroup-js>).
+SG review of the first full page: "no rhyme or reason to the specific
+examples included or their order." The organizing principle is now
+**API coverage inside a narrative**: an example exists because an API
+entry needs one, every entry has exactly one home, and an API index
+links each entry to its example.
 
-**Voice**: neutral, close to the old README's register. The gh-pages doc and
-the Toptal article run to excessive familiarity and enthusiasm — take
-neither their tone nor their material wholesale. Selectively: propose what
-seems worth bringing in (examples, motivating problems, comparisons to
-d3.nest etc.) and review the candidates with SG rather than grabbing
-everything.
+**Voice**: unchanged — neutral, close to the old README's register.
 
-1. **Positioning** — the seam between `d3.group` (grouping, no navigation)
-   and `d3.hierarchy` (navigation, no records, no multi-parent).
-2. **Quick start + core walkthrough** — Olympic athletes: records at every
-   level, navigation, paths, aggregates, multi-valued dims, Date keys.
-3. **DAG module** — constructors (`fromParentIds`/`fromEdges`/
-   `fromParentChild`), cycle handling, union-safe rollups, subgraph;
-   culminating in a live embedded dag-browser-widget fed by
-   `toDagBrowserNodes` (fallback per above).
-4. **Sequence** — deliberately small: `groupBySequence` on hurricane events
-   (from lifeflow's sample data), forward/backward/anchored-both as
-   structure output, plus one stock d3 icicle via `toD3` + `d3.partition`.
-   A visible placeholder notes that the full lifeflow/timelines demo joins
-   the page when that project revives.
-5. **Compare** — two value sets over one hierarchy, vs-hub style;
-   `diffExample.csv` may seed this.
-6. **Migration** — the v1 → v2 table from the spec.
+1. **Positioning** (trimmed) — the seam between `d3.group` (grouping,
+   no navigation) and `d3.hierarchy` (navigation, no records, no
+   multi-parent).
+2. **The data** — the single synthea/vocab family (below), Grid.js
+   preview cards, the required Synthea citation, no redundant links.
+3. **Quick start** — a few cells on the synthea CSV extracts: instantly
+   runnable, no duckdb wait, minimal domain knowledge (e.g. conditions
+   by gender/condition).
+4. **API index** — hand-written table: every public export of
+   `supergroup`, `/dag`, `/sequence`, `/compare`, `/adapters`,
+   `/formatting`, plus `Supergroup` and `SGNode` methods; one-liner
+   each; anchor link to the demonstrating cell. Completeness is the
+   review criterion: no undemonstrated entry, no orphan example.
+5. **SQL on the page** — duckdb-wasm intro (status line, `sql()`, local
+   CSV registration, remote parquet views); its published results feed
+   the later sections.
+6. **Core** — supergroup(), node()/select()/flatten()/leaves(),
+   agg/rollup/pct, namePath/dimPath, multi-valued dims (inline movies
+   literal), Date keys, `treeView` display.
+7. **DAG** — constructors on a 5-line inline cyclic literal (cycles/
+   backedges pedagogy), then the live vocab classification: attach,
+   union-safe rollups, subgraph, the slimmed DBW embed
+   (`reactMount`), and the **treemap** (`toD3` `recordLeaves`: drug
+   eras under ATC, one rect per era — the v1
+   addRecordsAsChildrenToLeafNodes use).
+8. **Sequence** — condition histories (`groupBySequence`
+   forward/anchored-both), closing with the **zoomable icicle**
+   (click-to-zoom; replaces the unreadable static one) and the
+   **sankey** of condition/status transitions (d3-sankey; the
+   LifeFlow-flavored showcase). The lifeflow/timelines placeholder
+   prose stays.
+9. **Compare** — women-vs-men cohorts over the drug classification;
+   `treeView` diff coloring (green added / red removed), closing with
+   **diverging bars** by countDelta.
+10. **Adapters** — the pattern (plain objects out: `toD3`,
+    `toDagBrowserNodes`), pointing back at the viz cells that use them.
+11. **Migration** — the v1 → v2 table (incl. viewing-convenience and
+    recordLeaves rows).
 
-### Datasets (`docs/data/`)
+Cells that show several values use `print(...)`; structure display uses
+`treeView`/`jsonView`/`gridTable` explicitly (see Display). Big cells
+are fine — code boxes scroll and resize.
+
+### Datasets (`docs/data/`) (rewritten 2026-07-28 — examples redesign round)
+
+One data world: the synthea 1k-patient cohort + OMOP vocabulary
+(SNOMED/RxNorm/ATC). Everything else is deleted — files, preview cards,
+and data-section rows (`OlympicAthletes.csv`, `fake-patient_data.csv`,
+`diffExample.csv`, `fips.csv`, `hurricane.csv`, `containment.json`;
+`drug-classes.json` was already retired by the duckdb-demo work).
+Pedagogical toys (the cyclic containment digraph, the multi-valued
+movies example) live as short inline literals in their cells — not
+datasets, no files, no cards.
 
 | Dataset | Source | Used by |
 |---|---|---|
-| `OlympicAthletes.csv` | moves from `examples/` | core walkthrough |
-| `fake-patient_data.csv` | gh-pages branch `examples/` | grouping/aggregate examples (the doc.md walkthrough) |
-| `diffExample.csv` | gh-pages branch `examples/` | compare intro |
-| FIPS state/county data | Census fallback (Toptal article's dataset is a dead gist) | scale example (optional) |
-| hurricane events | lifeflow `sampleData/` | sequence intro |
-| small containment digraph | hand-written (dmvd-shaped, cyclic) | DAG constructors intro |
-| `synthea-conditions.csv`, `synthea-drugs.csv`, `synthea-persons.csv` | synthea1k (public S3 `s3://synthea-omop/synthea1k/`, ~1,130 patients), names joined from SG's local OMOP vocab (postgres `n3c.n3c`) | clinical sequence demo; cohort compare; grouping |
-| `drug-classes.json` | ATC+RxNorm ancestry (direct edges) over the cohort's 104 drugs, from `n3c.concept_ancestor` — ~1,284 nodes, ~3,081 edges, 80 multi-parent | DAG centerpiece: attachRecords, drc-style rollups, DBW embed, compare by id |
+| `synthea-conditions.csv`, `synthea-drugs.csv`, `synthea-persons.csv` | synthea1k (public S3 `s3://synthea-omop/synthea1k/`, ~1,130 patients), names joined from SG's local OMOP vocab (postgres `n3c.n3c`) | quick start; core; sequence (instant, no duckdb wait) |
+| remote parquet (`sigfried.github.io/omop-demo-data`): vocab tables + synthea OMOP tables | published data repo (duckdb-demo Task 6) | SQL section; DAG classification; compare; anything needing joins/vocab |
 
 The synthea/vocab extracts are rebuilt by a committed curation script
 (`docs/data/curation/`) so they can scale up later for the lifeflow/
 timelines demo. SG OK'd publishing SNOMED/ATC/RxNorm names in these
-extracts (2026-07-14).
+extracts (2026-07-14). The required citation sentence stays with the
+synthea bullet (verbatim, 2026-07-16).
 
 ## README rewrite
 
@@ -251,8 +316,10 @@ import every subpath, run a smoke snippet.
 3. Site, then README, then `legacy/` move, then planning-doc cleanup.
 4. Flip the Pages setting (Settings → Pages → master `/docs`) — SG does it,
    or via `gh api` with SG's OK. Verify the live site.
-5. `npm publish` — everything prepped; SG runs it (auth/2FA) or gives
-   explicit go-ahead to run it here. Confirm 2.0.0 is `latest`.
+5. `npm publish` — DONE EARLY (2026-07-28): SG published 2.0.0 ahead of
+   the docs work so dmvd could depend on it; README carries a docs-lag
+   banner until the rewrite lands (remove it in the README task).
+   Verified `latest: 2.0.0`. Tag `v2.0.0` + push: SG.
 6. Post-publish: dmvd CLAUDE.md pointer to the v2 spec's GitHub URL; note in
    hub's `projects/lifeflow/README.md` about the supergroup update and the
    reminder to add lifeflow/timelines to the demo page when ready.
@@ -264,3 +331,7 @@ import every subpath, run a smoke snippet.
 - Fixing/publishing the 1.x line.
 - CI / GitHub Actions of any kind.
 - Framework adapters, docs search, multi-page docs site.
+- Page-wide React or any build step for the site (considered and
+  rejected 2026-07-28; React stays island-only via `reactMount`, page
+  packages load from the importmap: `gridjs`, `json-formatter-js`,
+  `d3-sankey`).
